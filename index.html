@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mysuru Dasara 2026 - Trip Expense Splitter</title>
+  <meta name="description" content="Dedicated trip expense sharing and budgeting app for Avinash and Thannmay's Bengaluru to Mysuru Dasara 2026 trip.">
+  <meta name="theme-color" content="#0a0e17">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-top">
+        <div class="logo-area">
+          <div class="palace-icon">🏰</div>
+          <div class="app-title-group">
+            <h1>Mysuru Dasara 2026 <span>✨</span></h1>
+            <div class="trip-tag">Bengaluru ➔ Mysuru • 17 Oct 2026</div>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!-- Vault Offline Safe Indicator -->
+          <button class="vault-status-pill" id="vault-status-btn" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-full); padding: 5px 10px; font-size: 0.72rem; color: #10b981; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Triple-layer storage active: LocalStorage + Snapshot Vault + IndexedDB (Offline Safe)" onclick="window.App.showVaultInfo()">
+            <span>🛡️</span>
+            <span>Vault Safe</span>
+          </button>
+
+          <!-- Active user switch button -->
+          <button class="active-user-toggle" id="user-toggle-btn" title="Tap to switch active traveler (Avinash / Thannmay)">
+            <span class="user-avatar-dot avinash" id="header-user-dot"></span>
+            <span id="header-user-name">Avinash</span>
+            <span style="font-size: 0.65rem; color: var(--text-dim);">⇄</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-view">
+
+      <!-- ================= TAB 1: EXPENSES & DASHBOARD ================= -->
+      <section class="tab-pane active" id="tab-expenses">
+        
+        <!-- Royal Settlement Hero Card -->
+        <div class="card card-royal settlement-card">
+          <div class="settlement-badge">👑 Dasara Split Status</div>
+          <div class="settlement-headline" id="settlement-headline">
+            Calculating...
+          </div>
+          <div class="settlement-amount" id="settlement-amount">₹0</div>
+          <div class="settlement-sub" id="settlement-sub">Total trip expenditures up to date</div>
+          <div class="settlement-actions">
+            <button class="btn btn-primary btn-sm" id="btn-hero-settle">
+              ⚡ Settle Up via UPI
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="window.App.switchTab('analytics')">
+              📊 View Budget
+            </button>
+          </div>
+        </div>
+
+        <!-- Individual Spending Summary -->
+        <div class="spending-grid">
+          <!-- Avinash Spend Box -->
+          <div class="user-spend-box avinash">
+            <div class="user-box-header">
+              <span class="user-box-name avinash">
+                <span class="user-box-avatar avinash">A</span>
+                Avinash
+              </span>
+              <span style="font-size: 0.7rem; color: var(--text-muted);">Paid</span>
+            </div>
+            <div class="user-spent-amount" id="stat-avinash-spent">₹0</div>
+            <div class="user-spend-detail">
+              <span>Bengaluru Traveler</span>
+              <span style="color: var(--accent-avinash);">Active</span>
+            </div>
+          </div>
+
+          <!-- Thannmay Spend Box -->
+          <div class="user-spend-box thannmay">
+            <div class="user-box-header">
+              <span class="user-box-name thannmay">
+                <span class="user-box-avatar thannmay">T</span>
+                Thannmay
+              </span>
+              <span style="font-size: 0.7rem; color: var(--text-muted);">Paid</span>
+            </div>
+            <div class="user-spent-amount" id="stat-thannmay-spent">₹0</div>
+            <div class="user-spend-detail">
+              <span>Mysuru Companion</span>
+              <span style="color: var(--accent-thannmay);">Traveler</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Trip Spend Bar -->
+        <div class="trip-total-bar">
+          <div class="trip-total-title">Total Trip Expenses</div>
+          <div class="trip-total-value" id="stat-trip-total">₹0</div>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="expense-search-input" placeholder="Search expenses (Mylari Dosa, Toll, Fuel...)">
+        </div>
+
+        <div class="filter-scroll">
+          <button class="filter-chip active" data-filter="all">All Items</button>
+          <button class="filter-chip" data-filter="travel">🚗 Travel</button>
+          <button class="filter-chip" data-filter="food">🍛 Food</button>
+          <button class="filter-chip" data-filter="sightseeing">🎟️ Sightseeing</button>
+          <button class="filter-chip" data-filter="stay">🏨 Stay</button>
+          <button class="filter-chip" data-filter="shopping">🛍️ Shopping</button>
+          <button class="filter-chip" data-filter="avinash">By Avinash</button>
+          <button class="filter-chip" data-filter="thannmay">By Thannmay</button>
+        </div>
+
+        <!-- Expenses List Header -->
+        <div class="section-header">
+          <h2 class="section-title">
+            <span>📜</span> Trip Expenses
+          </h2>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="section-meta" id="expenses-count-meta">0 expenses</span>
+            <button class="btn btn-sm" id="btn-quick-clear-all" style="background: rgba(239, 68, 68, 0.14); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.28); padding: 3px 8px; font-size: 0.72rem; cursor: pointer; border-radius: var(--radius-sm);" onclick="if(confirm('Clear all transactions and start fresh from ₹0 for your real trip?')) { window.TripState.clearAllExpenses(); window.App.showToast('🧹 All transactions cleared! Ready for your real trip.'); }">
+              🧹 Clear All
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic List Container -->
+        <div class="expense-list" id="expenses-container">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+      </section>
+
+      <!-- ================= TAB 2: ANALYTICS & BUDGET ================= -->
+      <section class="tab-pane" id="tab-analytics">
+        
+        <!-- Budget Health Card -->
+        <div class="card card-royal">
+          <div class="section-header" style="margin-bottom: 12px;">
+            <h3 class="section-title">🎯 Trip Budget Tracker</h3>
+            <span class="section-meta" id="budget-percent-text">0% spent</span>
+          </div>
+
+          <div class="budget-progress-container">
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="budget-progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-labels">
+              <span>Spent: <strong id="budget-spent-val" style="color: #fff;">₹0</strong></span>
+              <span>Target: <strong id="budget-total-val" style="color: #fff;">₹15,000</strong></span>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.82rem; color: var(--text-muted);">Remaining Allowance:</span>
+            <span id="budget-remain-val" style="font-size: 1rem; font-weight: 800; color: var(--success);">₹15,000 left</span>
+          </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div class="card">
+          <h3 class="section-title" style="margin-bottom: 12px;">
+            <span>🏷️</span> Spending By Category
+          </h3>
+          <div class="cat-breakdown-list" id="category-breakdown-container">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Quick Export / Share Card -->
+        <div class="card">
+          <h3 class="section-title" style="margin-bottom: 8px;">
+            <span>📤</span> Instant Trip Summary
+          </h3>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+            Send an update to Thannmay or save a backup of all expenses.
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn btn-success btn-full" id="btn-share-whatsapp">
+              📱 Send WhatsApp Summary to Thannmay
+            </button>
+            <button class="btn btn-secondary btn-full" id="btn-copy-sync-link">
+              🔗 Copy Shareable Trip Link
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= TAB 3: SETTLEMENT & UPI ================= -->
+      <section class="tab-pane" id="tab-settle">
+        
+        <div class="card card-royal">
+          <div class="section-header" style="margin-bottom: 10px;">
+            <h3 class="section-title">⚡ Final Settlement & UPI</h3>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
+            Calculated by deducting each person's fair share from what they actually paid upfront.
+          </p>
+
+          <!-- Split Math Breakdown -->
+          <div class="settle-summary-box">
+            <div class="settle-row">
+              <span style="color: var(--accent-avinash); font-weight: 700;">Avinash Paid</span>
+              <span id="settle-av-paid" style="font-weight: 800; color: #fff;">₹0</span>
+            </div>
+            <div class="settle-row">
+              <span style="color: var(--text-muted);">Avinash's True Share</span>
+              <span id="settle-av-share" style="color: var(--text-muted);">₹0</span>
+            </div>
+            <div style="border-top: 1px dashed var(--border-subtle); margin: 2px 0;"></div>
+            <div class="settle-row">
+              <span style="color: var(--accent-thannmay); font-weight: 700;">Thannmay Paid</span>
+              <span id="settle-th-paid" style="font-weight: 800; color: #fff;">₹0</span>
+            </div>
+            <div class="settle-row">
+              <span style="color: var(--text-muted);">Thannmay's True Share</span>
+              <span id="settle-th-share" style="color: var(--text-muted);">₹0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic QR & Payment Intent Card -->
+        <div class="card upi-qr-card">
+          <div class="settlement-badge" id="settle-card-title">Settlement QR</div>
+          <div id="settle-card-desc" style="font-size: 0.95rem; color: var(--text-main);">
+            Scan to pay instantly via Google Pay, PhonePe, or Paytm
+          </div>
+
+          <!-- Dynamic QR Container -->
+          <div class="qr-canvas-box" id="settle-qr-box">
+            <!-- QR code rendered here -->
+          </div>
+
+          <a href="#" class="btn btn-primary btn-full" id="btn-open-upi-app" style="display: none;">
+            ⚡ Open UPI App to Settle
+          </a>
+
+          <div class="upi-apps-icons">
+            <span>Supported:</span>
+            <span>🟢 PhonePe</span>
+            <span>🔵 Google Pay</span>
+            <span>💙 Paytm</span>
+            <span>🟠 BHIM UPI</span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= TAB 4: MYSURU DASARA GUIDE ================= -->
+      <section class="tab-pane" id="tab-guide">
+        
+        <!-- Palace Illumination Banner -->
+        <div class="card card-royal" style="border-left: 4px solid #f59e0b;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="font-size: 1.5rem;">👑</span>
+            <h3 style="font-size: 1.05rem; font-weight: 800; color: #fff;">Mysore Palace Illumination</h3>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--primary); font-weight: 700; margin-bottom: 6px;">
+            🕒 7:00 PM – 8:00 PM • 17 October 2026
+          </div>
+          <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.45;">
+            Nearly 100,000 bulbs light up simultaneously! For the best view and photos, stand near the South Gate or Jayamarthanda Gate ground around 6:45 PM.
+          </p>
+        </div>
+
+        <!-- Food Trail -->
+        <div class="card">
+          <h3 class="section-title" style="margin-bottom: 12px;">
+            <span>🍛</span> Famous Mysuru Food Trail
+          </h3>
+          <div style="display: flex; flex-direction: column; gap: 10px;" id="guide-food-trail">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Sightseeing Spots -->
+        <div class="card">
+          <h3 class="section-title" style="margin-bottom: 12px;">
+            <span>🏰</span> Key Dussehra Spots
+          </h3>
+          <div style="display: flex; flex-direction: column; gap: 10px;" id="guide-sightseeing-spots">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Expressway Tips -->
+        <div class="card">
+          <h3 class="section-title" style="margin-bottom: 8px;">
+            <span>🚗</span> Bengaluru ➔ Mysuru Expressway (NH 275)
+          </h3>
+          <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.45; margin-bottom: 8px;">
+            The 10-lane expressway takes approx. 75 to 90 mins from NICE road junction. Toll is charged electronically via Fastag (~₹320 total).
+          </p>
+          <div style="font-size: 0.78rem; color: var(--primary); font-weight: 600;">
+            ☕ Must-try stop: Thatte Idli & Maddur Vada at Bidadi or Maddur Tiffany's!
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= TAB 5: SETTINGS & SYNC ================= -->
+      <section class="tab-pane" id="tab-settings">
+        
+        <div class="card card-royal">
+          <h3 class="section-title" style="margin-bottom: 8px;">
+            <span>🔄</span> Dual-Device Sync (GitHub Pages)
+          </h3>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">
+            Host this app on your free GitHub Pages repository. Both Avinash and Thannmay can open the URL on their respective phones.
+          </p>
+          <div class="sync-code-display">
+            <div>
+              <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Trip Sync Room</div>
+              <div class="sync-code-text" id="settings-room-code">MYS-DASARA-2026</div>
+            </div>
+            <button class="btn btn-outline btn-sm" id="btn-copy-sync-link">
+              Copy Sync Link
+            </button>
+          </div>
+        </div>
+
+        <!-- UPI IDs Configuration -->
+        <div class="card">
+          <h3 class="section-title" style="margin-bottom: 12px;">
+            <span>💳</span> Payment UPI IDs
+          </h3>
+          <div class="form-group">
+            <label class="form-label">
+              <span>Avinash's UPI ID</span>
+              <span style="font-size: 0.7rem; color: var(--accent-avinash);">GPay / PhonePe</span>
+            </label>
+            <input type="text" class="form-input" id="settings-avinash-upi" placeholder="e.g. avinash@okhdfcbank or 9876543210@paytm">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span>Thannmay's UPI ID</span>
+              <span style="font-size: 0.7rem; color: var(--accent-thannmay);">GPay / PhonePe</span>
+            </label>
+            <input type="text" class="form-input" id="settings-thannmay-upi" placeholder="e.g. thannmay@ybl or thannmay@upi">
+          </div>
+        </div>
+
+        <!-- Budget Setting -->
+        <div class="card">
+          <h3 class="section-title" style="margin-bottom: 12px;">
+            <span>💰</span> Trip Budget Target
+          </h3>
+          <div class="form-group">
+            <label class="form-label">Total Target Budget (INR ₹)</label>
+            <input type="number" class="form-input" id="settings-budget-input" value="15000">
+          </div>
+        </div>
+
+        <!-- Backup & Reset -->
+        <div class="card">
+          <h3 class="section-title" style="margin-bottom: 12px;">
+            <span>💾</span> Data Backup & Restore
+          </h3>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn btn-secondary btn-full" id="btn-export-csv">
+              📊 Export to Excel / CSV
+            </button>
+            <button class="btn btn-secondary btn-full" id="btn-export-json">
+              📥 Download Backup (.json)
+            </button>
+            <label class="btn btn-outline btn-full" style="cursor: pointer; text-align: center;">
+              📤 Restore from Backup (.json)
+              <input type="file" id="import-json-file" accept=".json" style="display: none;">
+            </label>
+            <button class="btn btn-full" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 6px;" onclick="if(confirm('Clear all expenses and start fresh from ₹0 for your real trip?')) { window.TripState.clearAllExpenses(); window.App.showToast('🧹 All expenses cleared! Starting fresh.'); }">
+              🧹 Clear All & Start Fresh (₹0)
+            </button>
+            <button class="btn btn-outline btn-full" style="margin-top: 4px;" onclick="window.TripState.loadDemoData(); window.App.showToast('✨ Demo transactions loaded!');">
+              👀 Load Demo / Sample Data (To Test)
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Floating Action Button (+ Add Expense) -->
+    <button class="fab-btn" id="fab-add-expense" title="Add New Expense">
+      <span style="font-size: 1.25rem;">➕</span>
+      <span>Add Expense</span>
+    </button>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        <button class="nav-item active" data-tab="expenses">
+          <span class="nav-icon">💰</span>
+          <span class="nav-label">Expenses</span>
+        </button>
+        <button class="nav-item" data-tab="analytics">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Budget</span>
+        </button>
+        <button class="nav-item" data-tab="settle">
+          <span class="nav-icon">⚡</span>
+          <span class="nav-label">Settle Up</span>
+        </button>
+        <button class="nav-item" data-tab="guide">
+          <span class="nav-icon">🏰</span>
+          <span class="nav-label">Guide</span>
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Settings</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal 1: Add/Edit Expense Form -->
+    <div class="modal-overlay" id="modal-expense-form">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3 class="modal-title" id="expense-modal-title">➕ Add Expense</h3>
+          <button class="modal-close-btn modal-close-trigger">✕</button>
+        </div>
+
+        <form id="expense-form">
+          <!-- Expense Title & Suggestions -->
+          <div class="form-group">
+            <label class="form-label">Expense Description</label>
+            <input type="text" class="form-input" id="expense-title" placeholder="e.g. Mylari Masala Dosa, Toll, Fuel" required>
+            
+            <!-- Quick Mysore suggestions -->
+            <div class="quick-chips">
+              <button type="button" class="quick-chip-btn" data-title="Mylari Masala Dosa" data-cat="food">🍛 Mylari Dosa</button>
+              <button type="button" class="quick-chip-btn" data-title="NICE Road Toll" data-cat="travel">🚗 Expressway Toll</button>
+              <button type="button" class="quick-chip-btn" data-title="Mysore Palace Tickets" data-cat="sightseeing">🏰 Palace Entry</button>
+              <button type="button" class="quick-chip-btn" data-title="Guru Sweets Mysore Pak" data-cat="food">🧈 Mysore Pak</button>
+              <button type="button" class="quick-chip-btn" data-title="Chamundi Hill Taxi / Fuel" data-cat="travel">⛽ Petrol / Fuel</button>
+              <button type="button" class="quick-chip-btn" data-title="Dasara Exhibition Tickets" data-cat="sightseeing">🎟️ Exhibition</button>
+            </div>
+          </div>
+
+          <!-- Amount (INR ₹) -->
+          <div class="form-group">
+            <label class="form-label">Amount (INR ₹)</label>
+            <input type="number" step="0.5" class="form-input" id="expense-amount" placeholder="0.00" required style="font-size: 1.3rem; font-weight: 800; color: var(--primary);">
+            
+            <div class="quick-amt-group">
+              <button type="button" class="quick-amt-btn" data-add="100">+₹100</button>
+              <button type="button" class="quick-amt-btn" data-add="200">+₹200</button>
+              <button type="button" class="quick-amt-btn" data-add="500">+₹500</button>
+              <button type="button" class="quick-amt-btn" data-add="1000">+₹1,000</button>
+            </div>
+          </div>
+
+          <!-- Category Selector -->
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <div class="cat-picker-grid">
+              <div class="cat-picker-item active" data-cat="food">
+                <span class="cat-icon">🍛</span>
+                <span class="cat-label">Food & Snacks</span>
+              </div>
+              <div class="cat-picker-item" data-cat="travel">
+                <span class="cat-icon">🚗</span>
+                <span class="cat-label">Travel & Toll</span>
+              </div>
+              <div class="cat-picker-item" data-cat="sightseeing">
+                <span class="cat-icon">🎟️</span>
+                <span class="cat-label">Dasara Sightseeing</span>
+              </div>
+              <div class="cat-picker-item" data-cat="stay">
+                <span class="cat-icon">🏨</span>
+                <span class="cat-label">Stay & Hotel</span>
+              </div>
+              <div class="cat-picker-item" data-cat="shopping">
+                <span class="cat-icon">🛍️</span>
+                <span class="cat-label">Shopping</span>
+              </div>
+              <div class="cat-picker-item" data-cat="misc">
+                <span class="cat-icon">📦</span>
+                <span class="cat-label">Miscellaneous</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Paid By -->
+          <div class="form-group">
+            <label class="form-label">Who Paid?</label>
+            <div class="segment-selector">
+              <button type="button" class="segment-btn active avinash" data-payer="avinash">
+                👤 Avinash
+              </button>
+              <button type="button" class="segment-btn thannmay" data-payer="thannmay">
+                👤 Thannmay
+              </button>
+            </div>
+          </div>
+
+          <!-- Split Strategy -->
+          <div class="form-group">
+            <label class="form-label">Split Method</label>
+            <div class="split-tabs">
+              <button type="button" class="split-tab-btn active" data-split="equal">Split 50 / 50</button>
+              <button type="button" class="split-tab-btn" data-split="personal">100% Personal</button>
+              <button type="button" class="split-tab-btn" data-split="custom">Custom Split</button>
+            </div>
+
+            <!-- Custom Split Inputs (Shown only if Custom selected) -->
+            <div class="custom-split-fields" id="custom-split-fields">
+              <div>
+                <label style="font-size: 0.72rem; color: var(--accent-avinash);">Avinash's Share (₹)</label>
+                <input type="number" class="form-input" id="custom-split-avinash" placeholder="0">
+              </div>
+              <div>
+                <label style="font-size: 0.72rem; color: var(--accent-thannmay);">Thannmay's Share (₹)</label>
+                <input type="number" class="form-input" id="custom-split-thannmay" placeholder="0">
+              </div>
+            </div>
+          </div>
+
+          <!-- Date & Payment Mode -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label class="form-label">Date & Time</label>
+              <input type="datetime-local" class="form-input" id="expense-date" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Payment Mode</label>
+              <select class="form-select" id="expense-payment-mode">
+                <option value="UPI">UPI (GPay/PhonePe)</option>
+                <option value="Cash">Cash</option>
+                <option value="Card">Card</option>
+                <option value="Fastag">Fastag</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group">
+            <label class="form-label">Notes (Optional)</label>
+            <input type="text" class="form-input" id="expense-notes" placeholder="e.g. Paid at south gate counter">
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full" id="expense-submit-btn" style="margin-top: 10px;">
+            Save Expense
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal 2: Expense Detail View -->
+    <div class="modal-overlay" id="modal-expense-detail">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3 class="modal-title">📋 Expense Details</h3>
+          <button class="modal-close-btn modal-close-trigger">✕</button>
+        </div>
+        <div id="expense-detail-body">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Element -->
+    <div class="toast" id="app-toast">Notification message</div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/state.js"></script>
+  <script src="js/calculator.js"></script>
+  <script src="js/qrcode.min.js"></script>
+  <script src="js/upi.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/mysore-guide.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Service Worker Registration for PWA Offline Support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => {
+          console.log('SW registration note:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
