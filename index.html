@@ -20,6 +20,11 @@
 <body>
 
   <div class="app-container">
+    <!-- In-App Browser (Instagram/FB) Tip Banner -->
+    <div id="inapp-browser-banner" style="display: none; background: rgba(245, 158, 11, 0.14); border-bottom: 1px solid rgba(245, 158, 11, 0.3); padding: 8px 14px; font-size: 0.74rem; color: #fcd34d; text-align: center;">
+      💡 Tip: Tap <strong>⋮</strong> at top right and choose <strong>"Open in Chrome / Safari"</strong> for best offline saving!
+    </div>
+
     <!-- Header -->
     <header class="app-header">
       <div class="header-top">
@@ -32,10 +37,16 @@
         </div>
 
         <div class="header-actions">
+          <!-- Google Sheet Live Sync Badge -->
+          <button class="vault-status-pill" id="cloud-sync-status-badge" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-full); padding: 5px 10px; font-size: 0.72rem; color: #10b981; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: #10b981;" id="cloud-status-dot"></span>
+            <span id="cloud-status-text">Sheet Live</span>
+          </button>
+
           <!-- Vault Offline Safe Indicator -->
-          <button class="vault-status-pill" id="vault-status-btn" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-full); padding: 5px 10px; font-size: 0.72rem; color: #10b981; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Triple-layer storage active: LocalStorage + Snapshot Vault + IndexedDB (Offline Safe)" onclick="window.App.showVaultInfo()">
+          <button class="vault-status-pill" id="vault-status-btn" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: var(--radius-full); padding: 5px 9px; font-size: 0.72rem; color: #38bdf8; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Triple-layer storage active: LocalStorage + Snapshot Vault + IndexedDB (Offline Safe)" onclick="window.App.showVaultInfo()">
             <span>🛡️</span>
-            <span>Vault Safe</span>
+            <span>Vault</span>
           </button>
 
           <!-- Active user switch button -->
@@ -66,8 +77,11 @@
             <button class="btn btn-primary btn-sm" id="btn-hero-settle">
               ⚡ Settle Up via UPI
             </button>
+            <button class="btn btn-secondary btn-sm" id="btn-hero-sync" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-avinash); border: 1px solid rgba(56, 189, 248, 0.35);">
+              📲 Sync with Thannmay
+            </button>
             <button class="btn btn-secondary btn-sm" onclick="window.App.switchTab('analytics')">
-              📊 View Budget
+              📊 Budget
             </button>
           </div>
         </div>
@@ -337,6 +351,36 @@
               Copy Sync Link
             </button>
           </div>
+
+          <!-- Google Sheets Live Cloud Sync -->
+          <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-subtle); display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.84rem; font-weight: 700; color: #fff;">📊 Google Sheet Live Sync</span>
+              <a href="https://docs.google.com/spreadsheets/d/1LElegoQAyOkOCNERLbHXYoaeW4bH1-nIxxzIPGz4tDs/edit" target="_blank" style="font-size: 0.74rem; color: var(--primary); text-decoration: none;">
+                Open Sheet ↗
+              </a>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 4px;">
+              <label class="form-label">
+                <span>Google Apps Script Web App URL</span>
+                <span style="font-size: 0.7rem; color: #10b981;">Live 2-Way Sync</span>
+              </label>
+              <input type="text" class="form-input" id="settings-sheet-api" placeholder="https://script.google.com/macros/s/.../exec">
+              <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
+                Paste your deployed Google Apps Script Web App URL here once. It connects both phones directly to your Google Sheet!
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <button class="btn btn-primary btn-sm" id="btn-push-all-sheet">
+                📤 Upload All to Sheet
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btn-pull-all-sheet">
+                🔄 Check Sheet Now
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- UPI IDs Configuration -->
@@ -578,6 +622,43 @@
         </div>
         <div id="expense-detail-body">
           <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 3: Sync With Thannmay Action Sheet -->
+    <div class="modal-overlay" id="modal-sync-options">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3 class="modal-title">📲 Sync Trip with Thannmay</h3>
+          <button class="modal-close-btn modal-close-trigger">✕</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 14px; text-align: center;">
+          <div id="sync-modal-summary" style="background: var(--bg-elevated); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+            <!-- Populated via JS -->
+          </div>
+          
+          <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+            Send your latest logged expenses to Thannmay so both your apps stay 100% matched:
+          </p>
+
+          <button class="btn btn-success btn-full" id="btn-modal-wa-sync" style="padding: 13px; font-size: 0.95rem; font-weight: 800;">
+            📱 Send to Thannmay via WhatsApp
+          </button>
+          
+          <button class="btn btn-secondary btn-full" id="btn-modal-copy-sync">
+            📋 Copy 1-Tap Sync Link
+          </button>
+
+          <div style="margin-top: 10px; border-top: 1px dashed var(--border-subtle); padding-top: 14px;">
+            <div style="font-size: 0.82rem; font-weight: 700; color: #fff; margin-bottom: 8px;">
+              📷 Or Let Thannmay Scan This QR Code Directly:
+            </div>
+            <div class="qr-canvas-box" id="sync-qr-container" style="margin: 0 auto; min-width: 200px; min-height: 200px;"></div>
+            <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 8px;">
+              Thannmay points his phone camera at this QR code to load all expenses instantly.
+            </div>
+          </div>
         </div>
       </div>
     </div>

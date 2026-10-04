@@ -19,17 +19,28 @@ class AppController {
     // 1. Subscribe to state changes
     window.TripState.subscribe(() => {
       this.renderAll();
+      window.TripSync.pushToCloud();
     });
 
     // 2. Setup DOM Event Listeners
     this.bindEvents();
 
-    // 3. Check for URL state import
+    // 3. Check for URL state import (silent instant auto-merge)
     this.handleUrlImportCheck();
 
     // 4. Initial Render
     this.renderAll();
     this.renderGuide();
+
+    // 5. Automatic Google Sheet Background Sync
+    window.TripSync.startAutoSync();
+
+    // 6. Detect In-App browser (Instagram, FB) and show tip
+    const isInstagramOrFb = /Instagram|FBAN|FBAV/i.test(navigator.userAgent);
+    if (isInstagramOrFb) {
+      const banner = document.getElementById('inapp-browser-banner');
+      if (banner) banner.style.display = 'block';
+    }
   }
 
   bindEvents() {
@@ -214,7 +225,61 @@ class AppController {
     if (thannmayUpiInput) {
       thannmayUpiInput.addEventListener('change', (e) => {
         window.TripState.updateUserUpi('thannmay', e.target.value);
-        this.showToast("Thannmay's UPI ID saved!");
+    // Hero Sync Button
+    const heroSyncBtn = document.getElementById('btn-hero-sync');
+    if (heroSyncBtn) {
+      heroSyncBtn.addEventListener('click', () => this.openSyncModal());
+    }
+
+    // Modal Sync WhatsApp Button
+    const modalWaSync = document.getElementById('btn-modal-wa-sync');
+    if (modalWaSync) {
+      modalWaSync.addEventListener('click', () => {
+        window.TripSync.shareToWhatsApp();
+        document.getElementById('modal-sync-options').classList.remove('active');
+      });
+    }
+
+    // Modal Sync Copy Button
+    const modalCopySync = document.getElementById('btn-modal-copy-sync');
+    if (modalCopySync) {
+      modalCopySync.addEventListener('click', () => {
+        window.TripSync.copySyncLink().then(() => {
+          this.showToast('📋 Sync link copied! Send it to Thannmay on WhatsApp.');
+        });
+      });
+    }
+
+    // Google Sheet API Input in Settings
+    const sheetApiInput = document.getElementById('settings-sheet-api');
+    if (sheetApiInput) {
+      sheetApiInput.value = window.TripSync.getSheetApiUrl();
+      sheetApiInput.addEventListener('change', (e) => {
+        window.TripSync.setSheetApiUrl(e.target.value);
+        this.showToast('📊 Google Sheet Web App URL saved!');
+        window.TripSync.pullLatestFromCloud(false);
+      });
+    }
+
+    // Push All to Google Sheet Button
+    const pushAllBtn = document.getElementById('btn-push-all-sheet');
+    if (pushAllBtn) {
+      pushAllBtn.addEventListener('click', async () => {
+        const ok = await window.TripSync.pushAllExpensesToSheet();
+        if (ok) {
+          this.showToast('✅ All expenses uploaded to Google Sheet!');
+        } else {
+          this.showToast('❌ Failed to push. Check Google Apps Script URL.');
+        }
+      });
+    }
+
+    // Pull from Google Sheet Button
+    const pullAllBtn = document.getElementById('btn-pull-all-sheet');
+    if (pullAllBtn) {
+      pullAllBtn.addEventListener('click', async () => {
+        const count = await window.TripSync.pullLatestFromCloud(false);
+        this.showToast(`🔄 Synced with Google Sheet! (${count} new items)`);
       });
     }
   }
@@ -691,11 +756,13 @@ class AppController {
     }
 
     if (this.editingExpenseId) {
-      window.TripState.updateExpense(this.editingExpenseId, payload);
-      this.showToast('✅ Expense updated!');
+      const updated = window.TripState.updateExpense(this.editingExpenseId, payload);
+      window.TripSync.pushExpense(updated, 'update');
+      this.showToast('✅ Expense updated & synced!');
     } else {
-      window.TripState.addExpense(payload);
-      this.showToast('✨ Expense added successfully!');
+      const added = window.TripState.addExpense(payload);
+      window.TripSync.pushExpense(added, 'add');
+      this.showToast('✨ Expense saved & synced!');
     }
 
     document.getElementById('modal-expense-form').classList.remove('active');
@@ -769,9 +836,10 @@ class AppController {
 
   deleteFromDetail(expenseId) {
     if (confirm('Are you sure you want to delete this expense?')) {
-      window.TripState.deleteExpense(expenseId);
+      const removed = window.TripState.deleteExpense(expenseId);
+      window.TripSync.pushExpense({ id: expenseId }, 'delete');
       document.getElementById('modal-expense-detail').classList.remove('active');
-      this.showToast('🗑️ Expense moved to trash. Safe & restorable.');
+      this.showToast('🗑️ Expense moved to trash & synced.');
     }
   }
 
@@ -793,18 +861,49 @@ class AppController {
     this.switchTab('settings');
   }
 
+  openSyncModal() {
+    const modal = document.getElementById('modal-sync-options');
+    if (!modal) return;
+
+    const state = window.TripState;
+    const calc = window.TripCalculator.calculate(state.expenses, state.tripBudget);
+    const summaryEl = document.getElementById('sync-modal-summary');
+    const qrContainer = document.getElementById('sync-qr-container');
+
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <div style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 2px;">
+          ${state.expenses.length} ${state.expenses.length === 1 ? 'Expense' : 'Expenses'} Logged • Total ₹${calc.totalTrip.toLocaleString('en-IN')}
+        </div>
+        <div style="color: var(--primary); font-size: 0.85rem; font-weight: 700;">
+          ${calc.settlement.description}
+        </div>
+      `;
+    }
+
+    if (qrContainer) {
+      window.TripSync.renderSyncQr(qrContainer);
+    }
+
+    modal.classList.add('active');
+  }
+
   handleUrlImportCheck() {
     const imported = window.TripSync.checkUrlImport();
-    if (imported && Array.isArray(imported.expenses)) {
+    if (imported && Array.isArray(imported.expenses) && imported.expenses.length > 0) {
+      // Instant seamless auto-merge with zero blocking confirm alerts (works in Instagram & Chrome)
+      const added = window.TripState.mergeExpenses(imported.expenses);
+      if (imported.budget) window.TripState.updateBudget(imported.budget);
+      
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname);
+      } else {
+        window.location.hash = '';
+      }
+
       setTimeout(() => {
-        if (confirm(`Found ${imported.expenses.length} expenses shared with you! Do you want to merge them into this device?`)) {
-          const added = window.TripState.mergeExpenses(imported.expenses);
-          if (imported.budget) window.TripState.updateBudget(imported.budget);
-          this.showToast(`✨ Merged ${added} new expenses!`);
-          // Clear hash
-          window.location.hash = '';
-        }
-      }, 500);
+        this.showToast(`🎉 Synced! Loaded ${imported.expenses.length} trip expenses into your device.`);
+      }, 400);
     }
   }
 

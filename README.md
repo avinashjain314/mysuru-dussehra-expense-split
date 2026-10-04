@@ -8,6 +8,10 @@ Built with pure HTML5, CSS3, and JavaScript with **zero build tools** and **zero
 
 ## 🌟 Key Features
 
+- **📊 100% Automated Google Sheet Live Sync**:
+  - Automatically writes all transactions to your shared Google Sheet: `https://docs.google.com/spreadsheets/d/1LElegoQAyOkOCNERLbHXYoaeW4bH1-nIxxzIPGz4tDs/edit`.
+  - Background live polling every 6 seconds.
+  - Zero manual syncing needed: log on one phone, and it pops up on the other automatically!
 - **🛡️ Zero-Data-Loss Vault Storage**:
   - **Triple-Layer Redundancy**: Writes simultaneously to **LocalStorage**, rolling **Snapshot Vaults**, and **IndexedDB** (`MysuruDasaraVault_DB`).
   - **Auto-Recovery**: If a mobile browser or system reboot ever clears temporary cache, the app automatically recovers all expenses from the Vault.
