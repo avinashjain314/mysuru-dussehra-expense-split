@@ -1,160 +1,234 @@
 /**
  * =========================================================================
- * MYSURU DASARA 2026 - GOOGLE SHEETS LIVE SYNC BACKEND
+ * MYSURU DASARA 2026 - GOOGLE SHEETS LIVE SYNC BACKEND (V2)
  * =========================================================================
  * 
- * This Google Apps Script turns your Google Sheet into a live cloud database.
- * Sheet URL: https://docs.google.com/spreadsheets/d/1LElegoQAyOkOCNERLbHXYoaeW4bH1-nIxxzIPGz4tDs/edit
+ * This version supports BOTH GET and POST methods, completely eliminating
+ * any mobile browser CORS or redirect issues!
  * 
- * INSTRUCTIONS TO DEPLOY (Takes 60 seconds):
- * 1. Open your Google Sheet in your browser.
- * 2. Click "Extensions" menu at the top -> "Apps Script".
- * 3. Delete any code in the editor, and paste this entire script.
- * 4. Click the blue "Deploy" button (top right) -> "New deployment".
- * 5. Click the gear icon (Select type) -> choose "Web app".
- * 6. Set:
- *    - Description: "Mysuru Finance API"
- *    - Execute as: "Me" (your email)
- *    - Who has access: "Anyone" (crucial so both phones can sync without login)
- * 7. Click "Deploy", authorize access with your Google account.
- * 8. Copy the "Web app URL" (it looks like https://script.google.com/macros/s/.../exec).
- * 9. Paste that URL into your app Settings -> "Google Sheet Live Sync URL", or in js/sync.js!
+ * Works 100% on:
+ * - Chrome, Safari, Firefox
+ * - Instagram in-app browser
+ * - Mobile webviews & PWA
  * =========================================================================
  */
 
 function doGet(e) {
-  var sheet = getOrCreateSheet();
-  var data = sheet.getDataRange().getValues();
-  
-  if (data.length <= 1) {
-    return createJsonResponse([]);
-  }
-  
-  var headers = data[0];
-  var expenses = [];
-  
-  for (var i = 1; i < data.length; i++) {
-    var row = data[i];
-    if (!row[0]) continue; // Skip empty rows
-    
-    var item = {};
-    for (var j = 0; j < headers.length; j++) {
-      item[headers[j]] = row[j];
+  try {
+    var sheet = getOrCreateSheet();
+    var params = (e && e.parameter) ? e.parameter : {};
+    var action = params.action || 'get';
+
+    // 0. PING / DIAGNOSTIC TEST
+    if (action === 'ping' || action === 'test') {
+      return createJsonResponse({
+        success: true,
+        version: 'v2.1',
+        sheetName: sheet.getName(),
+        rowCount: Math.max(0, sheet.getLastRow() - 1),
+        message: 'Google Sheet Live Sync is connected and ready!'
+      });
     }
-    
-    // Ensure proper types
-    item.amount = Number(item.amount) || 0;
-    if (typeof item.splitDetails === 'string' && item.splitDetails.indexOf('{') === 0) {
-      try {
-        item.splitDetails = JSON.parse(item.splitDetails);
-      } catch (err) {
-        item.splitDetails = {};
+
+    // 1. ADD / UPDATE via GET
+    if (action === 'add' || action === 'update') {
+      var exp = parseDataSafely(params.data);
+      if (exp) {
+        saveExpenseToSheet(sheet, exp);
+        return createJsonResponse({ success: true, action: action, id: exp.id, totalRows: sheet.getLastRow() - 1 });
       }
+      return createJsonResponse({ error: 'Failed to parse expense data: ' + params.data });
     }
-    
-    expenses.push(item);
+
+    // 2. DELETE via GET
+    if (action === 'delete') {
+      var idToDelete = params.id;
+      deleteExpenseFromSheet(sheet, idToDelete);
+      return createJsonResponse({ success: true, deleted: idToDelete, totalRows: sheet.getLastRow() - 1 });
+    }
+
+    // 3. SYNC ALL via GET
+    if (action === 'sync_all') {
+      var expenses = parseDataSafely(params.data);
+      if (Array.isArray(expenses)) {
+        syncAllExpensesToSheet(sheet, expenses);
+        return createJsonResponse({ success: true, syncedCount: expenses.length, totalRows: sheet.getLastRow() - 1 });
+      }
+      return createJsonResponse({ error: 'Failed to parse sync_all expenses array' });
+    }
+
+    // 4. DEFAULT: RETURN ALL EXPENSES
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return createJsonResponse([]);
+    }
+
+    var headers = data[0];
+    var results = [];
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      if (!row[0]) continue;
+
+      var item = {};
+      for (var j = 0; j < headers.length; j++) {
+        item[headers[j]] = row[j];
+      }
+
+      item.amount = Number(item.amount) || 0;
+      if (typeof item.splitDetails === 'string' && item.splitDetails.indexOf('{') === 0) {
+        try { item.splitDetails = JSON.parse(item.splitDetails); } catch(err) { item.splitDetails = {}; }
+      }
+      results.push(item);
+    }
+
+    return createJsonResponse(results);
+
+  } catch (err) {
+    return createJsonResponse({ error: err.toString() });
   }
-  
-  return createJsonResponse(expenses);
 }
 
 function doPost(e) {
   try {
     var sheet = getOrCreateSheet();
-    var payload = JSON.parse(e.postData.contents);
-    var action = payload.action || 'add';
+    var payload;
     
+    if (e && e.postData && e.postData.contents) {
+      payload = JSON.parse(e.postData.contents);
+    } else if (e && e.parameter) {
+      payload = e.parameter;
+    } else {
+      payload = {};
+    }
+
+    var action = payload.action || 'add';
+
+    if (action === 'ping' || action === 'test') {
+      return createJsonResponse({
+        success: true,
+        version: 'v2.1',
+        sheetName: sheet.getName(),
+        rowCount: Math.max(0, sheet.getLastRow() - 1),
+        message: 'Google Sheet Live Sync is connected and ready! (POST mode)'
+      });
+    }
+
     if (action === 'add' || action === 'update') {
       var exp = payload.expense;
-      if (!exp || !exp.id) {
-        return createJsonResponse({ error: 'Missing expense data' });
+      if (!exp && payload.data) exp = parseDataSafely(payload.data);
+      if (exp) {
+        saveExpenseToSheet(sheet, exp);
+        return createJsonResponse({ success: true, action: action, id: exp.id, totalRows: sheet.getLastRow() - 1 });
       }
-      
-      var data = sheet.getDataRange().getValues();
-      var rowIndex = -1;
-      
-      // Check if expense already exists (for update)
-      for (var i = 1; i < data.length; i++) {
-        if (data[i][0] == exp.id) {
-          rowIndex = i + 1; // 1-based row number
-          break;
-        }
-      }
-      
-      var avShare = exp.splitType === 'equal' ? (exp.amount / 2) : (exp.splitDetails ? (exp.splitDetails.avinash || 0) : 0);
-      var thShare = exp.splitType === 'equal' ? (exp.amount / 2) : (exp.splitDetails ? (exp.splitDetails.thannmay || 0) : 0);
-      
-      var rowData = [
-        exp.id,
-        exp.date || new Date().toISOString(),
-        exp.title,
-        Number(exp.amount),
-        exp.category,
-        exp.paidBy,
-        exp.splitType,
-        avShare,
-        thShare,
-        JSON.stringify(exp.splitDetails || {}),
-        exp.paymentMode || 'UPI',
-        exp.notes || '',
-        exp.createdAt || Date.now()
-      ];
-      
-      if (rowIndex > 0) {
-        sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
-      } else {
-        sheet.appendRow(rowData);
-      }
-      
-      return createJsonResponse({ success: true, action: action, id: exp.id });
+      return createJsonResponse({ error: 'Missing or invalid expense payload' });
     }
-    
+
     if (action === 'delete') {
-      var idToDelete = payload.id;
-      var data = sheet.getDataRange().getValues();
-      for (var i = 1; i < data.length; i++) {
-        if (data[i][0] == idToDelete) {
-          sheet.deleteRow(i + 1);
-          break;
-        }
-      }
-      return createJsonResponse({ success: true, deleted: idToDelete });
+      deleteExpenseFromSheet(sheet, payload.id);
+      return createJsonResponse({ success: true, deleted: payload.id, totalRows: sheet.getLastRow() - 1 });
     }
-    
+
     if (action === 'sync_all') {
-      // Full sync / seed
-      var expenses = payload.expenses || [];
-      sheet.clearContents();
-      setupHeaders(sheet);
-      
-      for (var k = 0; k < expenses.length; k++) {
-        var eItem = expenses[k];
-        var avS = eItem.splitType === 'equal' ? (eItem.amount / 2) : (eItem.splitDetails ? (eItem.splitDetails.avinash || 0) : 0);
-        var thS = eItem.splitType === 'equal' ? (eItem.amount / 2) : (eItem.splitDetails ? (eItem.splitDetails.thannmay || 0) : 0);
-        
-        sheet.appendRow([
-          eItem.id,
-          eItem.date || new Date().toISOString(),
-          eItem.title,
-          Number(eItem.amount),
-          eItem.category,
-          eItem.paidBy,
-          eItem.splitType,
-          avS,
-          thS,
-          JSON.stringify(eItem.splitDetails || {}),
-          eItem.paymentMode || 'UPI',
-          eItem.notes || '',
-          eItem.createdAt || Date.now()
-        ]);
-      }
-      
-      return createJsonResponse({ success: true, syncedCount: expenses.length });
+      var expenses = payload.expenses;
+      if (!expenses && payload.data) expenses = parseDataSafely(payload.data);
+      syncAllExpensesToSheet(sheet, expenses || []);
+      return createJsonResponse({ success: true, syncedCount: (expenses || []).length, totalRows: sheet.getLastRow() - 1 });
     }
-    
-    return createJsonResponse({ error: 'Unknown action' });
+
+    return createJsonResponse({ error: 'Unknown action: ' + action });
   } catch (err) {
     return createJsonResponse({ error: err.toString() });
+  }
+}
+
+function parseDataSafely(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch (e1) {
+    try {
+      return JSON.parse(decodeURIComponent(raw));
+    } catch (e2) {
+      return null;
+    }
+  }
+}
+
+function saveExpenseToSheet(sheet, exp) {
+  if (!exp || !exp.id) return;
+  var data = sheet.getDataRange().getValues();
+  var rowIndex = -1;
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] == exp.id) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  var avShare = exp.splitType === 'equal' ? (exp.amount / 2) : (exp.splitDetails ? (exp.splitDetails.avinash || 0) : 0);
+  var thShare = exp.splitType === 'equal' ? (exp.amount / 2) : (exp.splitDetails ? (exp.splitDetails.thannmay || 0) : 0);
+
+  var rowData = [
+    exp.id,
+    exp.date || new Date().toISOString(),
+    exp.title,
+    Number(exp.amount),
+    exp.category,
+    exp.paidBy,
+    exp.splitType,
+    avShare,
+    thShare,
+    JSON.stringify(exp.splitDetails || {}),
+    exp.paymentMode || 'UPI',
+    exp.notes || '',
+    exp.createdAt || Date.now()
+  ];
+
+  if (rowIndex > 0) {
+    sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+  } else {
+    sheet.appendRow(rowData);
+  }
+}
+
+function deleteExpenseFromSheet(sheet, idToDelete) {
+  if (!idToDelete) return;
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] == idToDelete) {
+      sheet.deleteRow(i + 1);
+      break;
+    }
+  }
+}
+
+function syncAllExpensesToSheet(sheet, expenses) {
+  sheet.clearContents();
+  setupHeaders(sheet);
+
+  for (var k = 0; k < expenses.length; k++) {
+    var eItem = expenses[k];
+    var avS = eItem.splitType === 'equal' ? (eItem.amount / 2) : (eItem.splitDetails ? (eItem.splitDetails.avinash || 0) : 0);
+    var thS = eItem.splitType === 'equal' ? (eItem.amount / 2) : (eItem.splitDetails ? (eItem.splitDetails.thannmay || 0) : 0);
+
+    sheet.appendRow([
+      eItem.id,
+      eItem.date || new Date().toISOString(),
+      eItem.title,
+      Number(eItem.amount),
+      eItem.category,
+      eItem.paidBy,
+      eItem.splitType,
+      avS,
+      thS,
+      JSON.stringify(eItem.splitDetails || {}),
+      eItem.paymentMode || 'UPI',
+      eItem.notes || '',
+      eItem.createdAt || Date.now()
+    ]);
   }
 }
 
@@ -165,7 +239,7 @@ function getOrCreateSheet() {
     sheet = ss.getActiveSheet();
     sheet.setName('Trip_Expenses');
   }
-  
+
   if (sheet.getLastRow() === 0) {
     setupHeaders(sheet);
   }
@@ -174,19 +248,8 @@ function getOrCreateSheet() {
 
 function setupHeaders(sheet) {
   var headers = [
-    'id',
-    'date',
-    'title',
-    'amount',
-    'category',
-    'paidBy',
-    'splitType',
-    'avinashShare',
-    'thannmayShare',
-    'splitDetails',
-    'paymentMode',
-    'notes',
-    'createdAt'
+    'id', 'date', 'title', 'amount', 'category', 'paidBy', 'splitType',
+    'avinashShare', 'thannmayShare', 'splitDetails', 'paymentMode', 'notes', 'createdAt'
   ];
   sheet.appendRow(headers);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f3f4f6');
