@@ -225,6 +225,10 @@ class AppController {
     if (thannmayUpiInput) {
       thannmayUpiInput.addEventListener('change', (e) => {
         window.TripState.updateUserUpi('thannmay', e.target.value);
+        this.showToast("Thannmay's UPI ID saved!");
+      });
+    }
+
     // Hero Sync Button
     const heroSyncBtn = document.getElementById('btn-hero-sync');
     if (heroSyncBtn) {

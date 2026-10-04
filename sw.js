@@ -2,12 +2,14 @@
  * Mysuru Dasara 2026 - Service Worker for 100% Offline Capability
  */
 
-const CACHE_NAME = 'mysuru-dasara-v2.1';
+const CACHE_NAME = 'mysuru-dasara-v2.2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './css/styles.css',
+  './app.js',
+  './sync.js',
   './js/app.js',
   './js/state.js',
   './js/calculator.js',

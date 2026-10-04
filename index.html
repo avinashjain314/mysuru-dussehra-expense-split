@@ -674,14 +674,24 @@
 
   </div>
 
-  <!-- Scripts (v2.1 cache buster) -->
-  <script src="js/state.js?v=2.1"></script>
-  <script src="js/calculator.js?v=2.1"></script>
-  <script src="js/qrcode.min.js?v=2.1"></script>
-  <script src="js/upi.js?v=2.1"></script>
-  <script src="js/sync.js?v=2.1"></script>
-  <script src="js/mysore-guide.js?v=2.1"></script>
-  <script src="js/app.js?v=2.1"></script>
+  <!-- Scripts (v2.2 cache buster & dual-path loader) -->
+  <script src="js/state.js?v=2.2"></script>
+  <script src="js/calculator.js?v=2.2"></script>
+  <script src="js/qrcode.min.js?v=2.2"></script>
+  <script src="js/upi.js?v=2.2"></script>
+  <script src="js/sync.js?v=2.2" onerror="this.onerror=null;this.src='sync.js?v=2.2'"></script>
+  <script src="js/mysore-guide.js?v=2.2"></script>
+  <script src="js/app.js?v=2.2" onerror="this.onerror=null;this.src='app.js?v=2.2'"></script>
+
+  <!-- Auto fallback in case scripts were uploaded to root instead of /js -->
+  <script>
+    if (!window.TripSync) {
+      document.write('<script src="sync.js?v=2.2"><\/script>');
+    }
+    if (!window.App) {
+      document.write('<script src="app.js?v=2.2"><\/script>');
+    }
+  </script>
 
   <!-- Service Worker Registration for PWA Offline Support -->
   <script>
